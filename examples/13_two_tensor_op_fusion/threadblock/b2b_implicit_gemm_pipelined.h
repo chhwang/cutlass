@@ -47,6 +47,8 @@
 
 #include "threadblock/b2b_mma_base.h"
 
+#include "sync.h"
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace cutlass {
@@ -301,7 +303,7 @@ public:
     ++this->smem_iterator_A_;
     ++this->smem_iterator_B0_;
 
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
 
     // Pair of fragments used to overlap shared memory loads and math instructions
     WarpFragmentA0 warp_frag_A0[2];
@@ -347,7 +349,7 @@ public:
 
           this->smem_iterator_B0_.store(transform_B0(tb_frag_B0));
 
-          __syncthreads();
+          ark::sync_warps<Base::WarpCount::kCount * 32>();
           
           ++this->smem_iterator_A_;
           ++this->smem_iterator_B0_;
@@ -431,7 +433,7 @@ public:
 
     ++this->smem_iterator_B1_;
 
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
 
     // Pair of fragments used to overlap shared memory loads and math instructions
     WarpFragmentA1ScaleBias warp_frag_A1_scale[2];
@@ -484,7 +486,7 @@ public:
 
           this->smem_iterator_B1_.store(transform_B1(tb_frag_B1));
 
-          __syncthreads();
+          ark::sync_warps<Base::WarpCount::kCount * 32>();
           
           ++this->smem_iterator_B1_;
 
