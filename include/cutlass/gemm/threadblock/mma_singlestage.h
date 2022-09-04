@@ -38,7 +38,7 @@
 #include "cutlass/gemm/gemm.h"
 #include "cutlass/gemm/threadblock/mma_base.h"
 
-
+#include "sync.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -202,7 +202,7 @@ public:
       this->smem_iterator_A_.store(tb_frag_A);
       this->smem_iterator_B_.store(tb_frag_B);
 
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * 32>();
 
       //
       // Loop over GEMM K dimension
@@ -230,7 +230,7 @@ public:
       this->warp_tile_iterator_A_.add_tile_offset({0, -Policy::kPartitionsK * Base::kWarpGemmIterations});
       this->warp_tile_iterator_B_.add_tile_offset({-Policy::kPartitionsK * Base::kWarpGemmIterations, 0});
 
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * 32>();
 
       iterator_A.load(tb_frag_A);
       iterator_B.load(tb_frag_B);

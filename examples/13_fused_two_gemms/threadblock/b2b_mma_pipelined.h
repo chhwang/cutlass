@@ -41,6 +41,8 @@
 
 #include "threadblock/b2b_mma_base.h"
 
+#include "sync.h"
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace cutlass {
@@ -274,7 +276,7 @@ public:
     ++this->smem_iterator_A_;
     ++this->smem_iterator_B0_;
 
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
 
     // Pair of fragments used to overlap shared memory loads and math instructions
     WarpFragmentA0 warp_frag_A0[2];
@@ -328,7 +330,7 @@ public:
 
           this->smem_iterator_B0_.store(tb_frag_B0);
 
-          __syncthreads();
+          ark::sync_warps<Base::WarpCount::kCount * 32>();
 
           // Issue loads during the first warp-level matrix multiply-add *AFTER* issuing 
           // shared memory loads (which have the tighest latency requirement).
@@ -403,7 +405,7 @@ public:
 
     ++this->smem_iterator_B1_;
 
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
 
     // Pair of fragments used to overlap shared memory loads and math instructions
     WarpFragmentA1 warp_frag_A1[2];
@@ -453,7 +455,7 @@ public:
 
           this->smem_iterator_B1_.store(tb_frag_B1);
 
-          __syncthreads();
+          ark::sync_warps<Base::WarpCount::kCount * 32>();
           ++smem_iterator_B1_;
 
           // Add negative offsets to return iterators to the 'start' of the circular buffer in shared memory

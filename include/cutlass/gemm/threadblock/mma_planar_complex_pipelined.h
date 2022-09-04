@@ -38,6 +38,8 @@
 #include "cutlass/gemm/gemm.h"
 #include "cutlass/gemm/threadblock/mma_planar_complex_base.h"
 
+#include "sync.h"
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace cutlass {
@@ -281,7 +283,7 @@ public:
     ++this->smem_iterator_A_;
     ++this->smem_iterator_B_;
 
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
 
     // Pair of fragments used to overlap shared memory loads and math instructions
     WarpFragmentA warp_frag_real_A[2];
@@ -345,7 +347,7 @@ public:
           this->smem_iterator_B_.store(tb_frag_B_real);
           this->smem_iterator_B_.store_with_pointer_offset(tb_frag_B_imag, Base::SharedStorage::kImaginaryStrideB);
 
-          __syncthreads();
+          ark::sync_warps<Base::WarpCount::kCount * 32>();
           
           ++this->smem_iterator_B_;
           ++this->smem_iterator_A_;

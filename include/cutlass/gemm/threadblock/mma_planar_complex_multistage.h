@@ -41,6 +41,8 @@
 #include "cutlass/gemm/gemm.h"
 #include "cutlass/gemm/threadblock/mma_planar_complex_base.h"
 
+#include "sync.h"
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace cutlass {
@@ -478,7 +480,7 @@ public:
 
     // Blocks until all but kStages-2 cp.async stages have committed.
     cutlass::arch::cp_async_wait<Base::kStages - 2>();
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
 
     // Pair of fragments used to overlap shared memory loads and math
     // instructions
@@ -573,7 +575,7 @@ public:
 
           // Blocks until all but kStages-2 cp.async stages have committed.
           arch::cp_async_wait<Base::kStages - 2>();
-          __syncthreads();
+          ark::sync_warps<Base::WarpCount::kCount * 32>();
 
           // Move to the next stage
           iterator_A_real.add_tile_offset({0, 1});
