@@ -51,6 +51,8 @@
 #include "cutlass/epilogue/threadblock/epilogue_base.h"
 #include "cutlass/epilogue/threadblock/predicated_tile_iterator.h"
 
+#include "sync.h"
+
 ////////////////////////////////////////////////////////////////////////////////
 
 namespace cutlass {
@@ -205,8 +207,8 @@ public:
       //
       // Convert and store fragment
       //
-      
-      __syncthreads();
+
+      ark::sync_warps<Base::WarpCount::kCount * 32>();
 
       typename AccumulatorFragmentIterator::Fragment accum_fragment;
 
@@ -215,7 +217,7 @@ public:
 
       this->warp_tile_iterator_.store(accum_fragment);
 
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * 32>();
 
       //
       // Load fragments from shared memory

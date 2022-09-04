@@ -48,7 +48,7 @@ struct integer_subbyte {
   static bool const kSigned = Signed;
 
   /// External type
-  using T = typename std::conditional<kSigned, int, unsigned>::type;
+  using T = typename platform::conditional<kSigned, int, unsigned>::type;
 
   /// Storage type
   using Storage = uint8_t;
