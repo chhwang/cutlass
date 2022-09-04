@@ -44,6 +44,8 @@
 #include "cutlass/arch/cache_operation.h"
 #include "cutlass/gemm/threadblock/mma_base.h"
 
+#include "sync.h"
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace cutlass {
@@ -353,7 +355,7 @@ public:
 
     // Waits until kStages-2 stages have committed. 
     cutlass::arch::cp_async_wait<Base::kStages - 2>();
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
 
     // Pair of fragments used to overlap shared memory loads and math
     // instructions
@@ -482,7 +484,7 @@ public:
 
           // Waits until kStages-2 stages of cp.async have committed
           arch::cp_async_wait<Base::kStages - 2>();
-          __syncthreads();
+          ark::sync_warps<Base::WarpCount::kCount * 32>();
 
           // Move to the next stage
           iterator_A.advance();
@@ -530,7 +532,7 @@ public:
     // Insert fence and wait for all outstanding cp.async operations to commit.
     cutlass::arch::cp_async_fence();
     cutlass::arch::cp_async_wait<0>();
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
 
   }
 };

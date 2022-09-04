@@ -48,6 +48,8 @@
 #include "threadblock/b2b_mma_base_smem_accumulator.h"
 #include "cutlass/epilogue/threadblock/epilogue_smem_accumulator.h"
 
+#include "sync.h"
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace cutlass {
@@ -321,7 +323,7 @@ public:
     ++this->smem_iterator_A_;
     ++this->smem_iterator_B0_;
 
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
 
     // Pair of fragments used to overlap shared memory loads and math instructions
     WarpFragmentA0 warp_frag_A0[2];
@@ -367,7 +369,7 @@ public:
 
           this->smem_iterator_B0_.store(transform_B0(tb_frag_B0));
 
-          __syncthreads();
+          ark::sync_warps<Base::WarpCount::kCount * 32>();
           
           ++this->smem_iterator_A_;
           ++this->smem_iterator_B0_;
@@ -416,7 +418,7 @@ public:
 
     epilogue0(output_op_0, smem_iterator_D0_, accum0, iterator_accum0_scale, iterator_accum0_bias);
 
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
     
     /// 2nd Implicit Gemm
     
@@ -438,7 +440,7 @@ public:
 
     ++this->smem_iterator_B1_;
 
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
 
     // Pair of fragments used to overlap shared memory loads and math instructions
     WarpFragmentA1 warp_frag_A1[2];
@@ -481,7 +483,7 @@ public:
           // Write fragments to shared memory
           this->smem_iterator_B1_.store(transform_B1(tb_frag_B1));
 
-          __syncthreads();
+          ark::sync_warps<Base::WarpCount::kCount * 32>();
           
           ++this->smem_iterator_B1_;
 

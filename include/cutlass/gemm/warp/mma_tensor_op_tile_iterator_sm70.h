@@ -49,6 +49,8 @@
 
 #include "cutlass/platform/platform.h"
 
+#include "sync.h"
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace cutlass {
@@ -2430,7 +2432,7 @@ public:
     }
 
     #if defined(__CUDA_ARCH__)
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
     #endif
 
     ref_.add_coord_offset(origin_);
@@ -2781,7 +2783,7 @@ public:
     }
 
     #if defined(__CUDA_ARCH__)
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
     #endif
 
     ref_.add_coord_offset(origin_);

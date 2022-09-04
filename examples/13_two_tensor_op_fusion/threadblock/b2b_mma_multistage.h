@@ -46,6 +46,8 @@
 
 #include "threadblock/b2b_mma_base.h"
 
+#include "sync.h"
+
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace cutlass {
@@ -495,7 +497,7 @@ public:
 
     // DEPBAR+SYNC
     cutlass::arch::cp_async_wait<Base::kStages - 2>();
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
 
     // Pair of fragments used to overlap shared memory loads and math
     // instructions
@@ -591,7 +593,7 @@ public:
 
           // Waits until kStages-2 stages have committed.
           arch::cp_async_wait<Base::kStages - 2>();
-          __syncthreads();
+          ark::sync_warps<Base::WarpCount::kCount * 32>();
 
           // Move to the next stage
           iterator_A0.add_tile_offset({0, 1});
@@ -708,7 +710,7 @@ public:
 
     // DEPBAR+SYNC
     cutlass::arch::cp_async_wait<Base::kStages - 2>();
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * 32>();
 
     // Pair of fragments used to overlap shared memory loads and math
     // instructions
@@ -831,7 +833,7 @@ public:
 
           // Waits until kStages-2 stages have committed.
           arch::cp_async_wait<Base::kStages - 2>();
-          __syncthreads();
+          ark::sync_warps<Base::WarpCount::kCount * 32>();
 
           // Move to the next stage
           iterator_B1.add_tile_offset({1, 0});
