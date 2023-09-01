@@ -436,7 +436,7 @@ public:
 
     // Waits until kStages-2 stages have committed.
     cutlass::arch::cp_async_wait<Base::kStages - 2>();
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
     // Pair of fragments used to overlap shared memory loads and math
     // instructions
@@ -574,7 +574,7 @@ public:
 
           // Waits until kStages-2 stages have committed.
           arch::cp_async_wait<Base::kStages - 2>();
-          __syncthreads();
+          ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
           // Move to the next stage
           iterator_A.add_tile_offset({0, 1});
@@ -634,7 +634,7 @@ public:
     // Commit and drain all pending and predicated cp.async pnz from the GEMM mainloop
     cutlass::arch::cp_async_fence();
     cutlass::arch::cp_async_wait<0>();
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
   }
 };

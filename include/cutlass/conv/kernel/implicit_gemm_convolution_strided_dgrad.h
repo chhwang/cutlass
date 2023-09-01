@@ -296,7 +296,7 @@ struct ImplicitGemmConvolutionStridedDgrad {
     }
 
     // Compute position within threadblock
-    int thread_idx = threadIdx.x;
+    int thread_idx = threadIdx.x % kThreadCount;
 
     // Compute starting filter position for strided dgrad
     int tile_m_per_filter = strided_dgrad_tile_m_per_filter(params.problem_size, 
@@ -338,7 +338,7 @@ struct ImplicitGemmConvolutionStridedDgrad {
 
     // Broadcast the warp_id computed by lane 0 to ensure dependent code
     // is compiled as warp-uniform.
-    int warp_idx = canonical_warp_idx_sync();
+    int warp_idx = canonical_warp_idx_sync() % WarpCount::kCount;
     int lane_idx = threadIdx.x % 32;
 
     // Check if CTA contributes valid MMA (Dy * w) and accumulator will be non-zero after MMA

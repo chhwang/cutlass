@@ -274,7 +274,7 @@ public:
   CUTLASS_DEVICE
   void gmem_wait()
   {
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
   }
 
 

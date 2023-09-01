@@ -275,12 +275,12 @@ public:
       // Convert and store fragment
       //
 
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
       acc2smem_source_needed<cutlass::make_index_sequence<Visitor::kIterations>>::push(
           iter_idx, accum_fragment_iterator, this->warp_tile_iterator_);
 
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
       //
       // Load fragments from shared memory

@@ -276,7 +276,7 @@ class PredicatedScaleBiasVectorAccessIterator<ThreadblockShape_,
     uint32_t enabled = 0;
 
 #if defined(_MSC_VER) || (__CUDACC_VER_MAJOR__ < 11)
-    enabled = threadIdx.x < kThreads * 2;
+    enabled = (threadIdx.x % ThreadblockShape::kCount) < kThreads * 2;
 #else
     asm volatile(
         "{\n"

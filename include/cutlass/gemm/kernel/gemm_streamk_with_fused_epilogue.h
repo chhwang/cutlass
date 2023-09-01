@@ -669,7 +669,7 @@ protected:
         params.params_A,
         ptr_A,
         { m_end, tile_work.k_end },
-        threadIdx.x,
+        threadIdx.x % kThreadCount,
         { m_begin, tile_work.k_begin });
 
   }
@@ -698,7 +698,7 @@ protected:
         params.params_B,
         ptr_B,
         { tile_work.k_end, n_end },
-        threadIdx.x,
+        threadIdx.x % kThreadCount,
         { tile_work.k_begin, n_begin });
   }
 
@@ -1185,7 +1185,7 @@ protected:
       }
 
       // Continue to next tile
-      __syncthreads();
+      ark::sync_warps<kThreadCount>();
 
       if (block_idx >= dp_start_block_idx)
       {
@@ -1229,8 +1229,8 @@ public:
     :
       params(params),
       shared_storage(shared_storage),
-      thread_idx(threadIdx.x),
-      warp_idx(__shfl_sync(0xffffffff, threadIdx.x / 32, 0)),   // broadcast the warp_id computed by lane 0 to ensure dependent code
+      thread_idx(threadIdx.x % kThreadCount),
+      warp_idx(__shfl_sync(0xffffffff, (threadIdx.x % kThreadCount) / 32, 0)),   // broadcast the warp_id computed by lane 0 to ensure dependent code
       lane_idx(threadIdx.x % 32),
       epilogue(
         shared_storage.epilogue,
@@ -1843,7 +1843,7 @@ protected:
         params.params_A,
         ptr_A,
         { m_end, tile_work.k_end },
-        threadIdx.x,
+        threadIdx.x % kThreadCount,
         { m_begin, tile_work.k_begin });
 
   }
@@ -1872,7 +1872,7 @@ protected:
         params.params_B,
         ptr_B,
         { tile_work.k_end, n_end },
-        threadIdx.x,
+        threadIdx.x % kThreadCount,
         { tile_work.k_begin, n_begin });
   }
 
@@ -2333,7 +2333,7 @@ protected:
       }
 
       // Continue to next tile
-      __syncthreads();
+      ark::sync_warps<kThreadCount>();
 
       if (block_idx >= dp_start_block_idx)
       {
@@ -2377,8 +2377,8 @@ public:
     :
       params(params),
       shared_storage(shared_storage),
-      thread_idx(threadIdx.x),
-      warp_idx(__shfl_sync(0xffffffff, threadIdx.x / 32, 0)),   // broadcast the warp_id computed by lane 0 to ensure dependent code
+      thread_idx(threadIdx.x % kThreadCount),
+      warp_idx(__shfl_sync(0xffffffff, (threadIdx.x % kThreadCount) / 32, 0)),   // broadcast the warp_id computed by lane 0 to ensure dependent code
       lane_idx(threadIdx.x % 32),
       epilogue(
         shared_storage.epilogue,

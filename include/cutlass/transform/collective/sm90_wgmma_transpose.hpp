@@ -224,7 +224,7 @@ public:
         copy(sB_tiled_copy, tCsB_copy_tile(_,step), transpose_fragment);
 
         // Make sure all elements are read before being overwritten
-        __syncthreads();
+        ark::sync_warps<size(TiledMma{})>();
 
         copy(sB_tiled_copy, transpose_fragment, tCsB_copy_tile_transposed(_,step));
       }

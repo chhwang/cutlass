@@ -362,7 +362,7 @@ public:
       ptr_B = static_cast<ElementB * const *>(params.ptr_B)[threadblock_tile_offset.k()];
     }
 
-    __syncthreads();
+    ark::sync_warps<kThreadCount>();
 
     // Compute initial location in logical coordinates
     cutlass::MatrixCoord tb_offset_A{
@@ -376,11 +376,11 @@ public:
     };
 
     // Compute position within threadblock
-    int thread_idx = threadIdx.x;
+    int thread_idx = threadIdx.x % kThreadCount;
 
     // Broadcast the warp_id computed by lane 0 to ensure dependent code
     // is compiled as warp-uniform.
-    int warp_idx = canonical_warp_idx_sync();
+    int warp_idx = canonical_warp_idx_sync() % WarpCount::kCount;
 
     int lane_idx = threadIdx.x % 32;
 

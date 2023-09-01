@@ -190,17 +190,21 @@ PipelineState<Pipeline::Stages> make_producer_start_state() {
 // Currently, it is optional to elect a leader for the Consumers
 template <
   int Stages_,
-  class ClusterShape_
+  class ClusterShape_,
+  int MaxThreadsPerBlock_,
 >
 class PipelineTmaAsync {
 public :
   using ClusterShape = ClusterShape_;
+  using MaxThreadsPerBlock = MaxThreadsPerBlock_;
   using FullBarrier = cutlass::arch::ClusterTransactionBarrier;
   using EmptyBarrier = cutlass::arch::ClusterBarrier;
   using ProducerBarrierType = FullBarrier::ValueType;
   using ConsumerBarrierType = EmptyBarrier::ValueType;
   static constexpr uint32_t Stages = Stages_;
   using PipelineState = cutlass::PipelineState<Stages>;
+
+  static constexpr uint32_t MaxWarpsPerBlock = MaxThreadsPerBlock / NumThreadsPerWarp;
 
   struct SharedStorage {
     FullBarrier full_barrier_[Stages];
@@ -229,7 +233,7 @@ public :
       , full_barrier_ptr_(&storage.full_barrier_[0])
       , empty_barrier_ptr_(&storage.empty_barrier_[0]) {
 
-    int warp_idx = canonical_warp_idx();
+    int warp_idx = canonical_warp_idx() % MaxWarpsPerBlock;
     int lane_predicate = cute::elect_one_sync();
     auto cluster_shape = ClusterShape{};
     if (warp_idx == cute::get<0>(params.active_warps) && lane_predicate == 1) {
@@ -631,7 +635,7 @@ public :
     , full_barrier_ptr_(storage.full_barrier_.data())
     , empty_barrier_ptr_(storage.empty_barrier_.data()) {
 
-    int warp_idx = canonical_warp_idx();
+    int warp_idx = canonical_warp_idx() % MaxWarpsPerBlock;
     int lane_predicate = cute::elect_one_sync();
 
     // Barrier FULL, EMPTY init
@@ -826,7 +830,7 @@ public :
       full_barrier_ptr_(&storage.full_barrier_[0]),
       empty_barrier_ptr_(&storage.empty_barrier_[0]) {
 
-    int warp_idx = canonical_warp_idx();
+    int warp_idx = canonical_warp_idx() % MaxWarpsPerBlock;
     int lane_predicate = cute::elect_one_sync();
 
     // Barrier FULL, EMPTY init
@@ -1015,7 +1019,7 @@ public:
       barrier_ptr_(&storage.barrier_[0][0]),
       // Group 0 - starts with an opposite phase
       stage_({0, params.group_id == 0, 0}) {
-    int warp_idx = canonical_warp_idx();
+    int warp_idx = canonical_warp_idx() % MaxWarpsPerBlock;
     int lane_predicate = cute::elect_one_sync();
 
     // Barrier FULL, EMPTY init

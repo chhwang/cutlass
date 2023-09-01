@@ -466,11 +466,12 @@ public:
         //
         // Compute indices within threadblock and warp.
         //
-        int thread_idx = threadIdx.x;
+        constexpr int num_threads = Mma::WarpCount::kCount * NumThreadsPerWarp;
+        int thread_idx = threadIdx.x % num_threads;
 
         // Broadcast the warp_id computed by lane 0 to ensure dependent code
         // is compiled as warp-uniform.
-        int warp_idx = canonical_warp_idx_sync();
+        int warp_idx = canonical_warp_idx_sync() % Mma::WarpCount::kCount;
         int lane_idx = threadIdx.x % 32;
     
         //

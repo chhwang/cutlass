@@ -351,7 +351,7 @@ private:
     //
 
     // Guard against uses of the existing SMEM tile
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
     
     using AccessType = AlignedArray<ElementAccumulator, ThreadMap::kElementsPerAccess>;
 
@@ -380,7 +380,7 @@ private:
       aligned_reduction_ptr[col_idx] = frag_ptr[column];
     }
 
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
     //
     // Now, threads are assigned several columns of the output. They fetch over all rows from
@@ -479,12 +479,12 @@ private:
       tensor_iterator.load(tensor_fragment);
       ++tensor_iterator;
       
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
       acc2smem<cutlass::make_index_sequence<OutputTileIterator::kIterations>>::push(
           iter, accum_fragment_iterator, this->warp_tile_iterator_);
 
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
       //
       // Load fragments from shared memory
@@ -587,12 +587,12 @@ private:
       // Convert and store fragment
       //
       
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
       acc2smem<cutlass::make_index_sequence<OutputTileIterator::kIterations>>::push(
           iter, accum_fragment_iterator, this->warp_tile_iterator_);
 
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
       //
       // Load fragments from shared memory

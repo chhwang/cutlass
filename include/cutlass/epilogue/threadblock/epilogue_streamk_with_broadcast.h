@@ -285,7 +285,7 @@ public:
     // Store fragment to shared memory
     this->warp_tile_iterator_.store(accum_fragment);
 
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
     Base::reduce(reduce_fragment_idx, output_op, broadcast_ptr, destination_iterator, source_iterator1, source_iterator2, tensor_iterator, problem_size, threadblock_offset);
     
@@ -427,7 +427,7 @@ public:
     // Store fragment to shared memory
     this->warp_tile_iterator_.store(accum_fragment);
 
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
     Base::reduce(reduce_fragment_idx, output_op, broadcast_ptr, destination_iterator, source_iterator, tensor_iterator, problem_size, threadblock_offset);
     

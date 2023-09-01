@@ -235,7 +235,7 @@ struct Gemm {
     int gemm_k_iterations = (problem_size_k - tb_offset_A.column() + Mma::Shape::kK - 1) / Mma::Shape::kK;
 
     // Compute position within threadblock
-    int thread_idx = threadIdx.x;
+    int thread_idx = threadIdx.x % kThreadCount;
 
     // Construct iterators to A and B operands
     typename Mma::IteratorA iterator_A(
@@ -256,7 +256,7 @@ struct Gemm {
 
     // Broadcast the warp_id computed by lane 0 to ensure dependent code
     // is compiled as warp-uniform.
-    int warp_idx = canonical_warp_idx_sync();
+    int warp_idx = canonical_warp_idx_sync() % WarpCount::kCount;
     int lane_idx = threadIdx.x % 32;
 
     //

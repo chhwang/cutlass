@@ -387,7 +387,7 @@ public:
       offset_k = threadblock_tile_offset.k() * params.gemm_k_size;
     }
 
-    __syncthreads();
+    ark::sync_warps<kThreadCount>();
 
     // Compute initial location in logical coordinates
     cutlass::MatrixCoord tb_offset_MxK_mma1{
@@ -411,11 +411,11 @@ public:
     };
 
     // Compute position within threadblock
-    int thread_idx = threadIdx.x;
+    int thread_idx = threadIdx.x % kThreadCount;
 
     // Broadcast the warp_id computed by lane 0 to ensure dependent code
     // is compiled as warp-uniform.
-    int warp_idx = canonical_warp_idx_sync();
+    int warp_idx = canonical_warp_idx_sync() % WarpCount::kCount;
 
     int lane_idx = threadIdx.x % 32;
 

@@ -132,7 +132,7 @@ CUTLASS_DEVICE void GemvBatchedStridedDevice(
       params_B,
       ref_B.data(),
       { problem_size.k(), problem_size.n() },
-      threadIdx.x,
+      threadIdx.x % kThreadCount,
       { 0, tb_offset.n()*ThreadBlockGemv::Shape::kN });
 
   //
@@ -163,7 +163,7 @@ CUTLASS_DEVICE void GemvBatchedStridedDevice(
         params_C,
         ref_C.data(),
         { 1, problem_size.n() },
-        threadIdx.x,
+        threadIdx.x % kThreadCount,
         { 0, tb_offset.n()*ThreadBlockGemv::Shape::kN });
     iterator_C.load(fragment_CD);
   }
@@ -180,7 +180,7 @@ CUTLASS_DEVICE void GemvBatchedStridedDevice(
       params_D,
       ref_D.data(),
       { 1, problem_size.n() },
-      threadIdx.x,
+      threadIdx.x % kThreadCount,
       { 0, tb_offset.n()*ThreadBlockGemv::Shape::kN });
   iterator_D.store(fragment_CD);
 }

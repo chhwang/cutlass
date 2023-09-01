@@ -328,7 +328,7 @@ private:
 
       frag_ptr[thread_idx] = accumulator;
 
-      __syncthreads();
+      ark::sync_warps<Threads>();
 
       if (threadIdx.z == 0) {
         // Load all additional block indices
@@ -342,7 +342,7 @@ private:
         } 
       }
 
-      __syncthreads();
+      ark::sync_warps<Threads>();
     }
 
     return accumulator;

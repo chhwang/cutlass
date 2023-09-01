@@ -373,6 +373,8 @@ class DepthwiseDirect2dConvSimtTileIterator<Shape_,
   static_assert(Policy::WarpShape::kRow > 0, "Policy::WarpShape::kRow must be greater than zero.");
   static_assert(Shape::kRow / Policy::WarpShape::kRow > 0, "Shape::kRow / Policy::WarpShape::kRow must be greater than zero.");
 
+  static constexpr int kThreadCount = ThreadBlockOutputShape::kCount / ThreadOutputShape::kCount;
+
 // Thread-level shape of a fragment
   using ThreadShape = MatrixShape<
     ThreadOutputShape::kNHW, // Output tile shape Computed by current threads
@@ -455,7 +457,7 @@ public:
     inc_next_r_ = params.inc_next[1];
 
     // Get base HW offset of current threads
-    int threadgroup = threadIdx.x / (ThreadBlockOutputShape::kC / ThreadOutputShape::kC);
+    int threadgroup = (threadIdx.x % kThreadCount) / (ThreadBlockOutputShape::kC / ThreadOutputShape::kC);
     int base_p_ =
         (threadgroup / (ThreadTileCount::kColumn)) * ThreadOutputShape::kH;
     int base_q_ =
@@ -750,7 +752,7 @@ class DepthwiseDirect2dConvSimtTileIterator<Shape_,
       Params const &params) {
 
     // Get base HW offset of current threads
-    int threadgroup = threadIdx.x / (ThreadBlockOutputShape::kC / ThreadOutputShape::kC);
+    int threadgroup = (threadIdx.x % kThreadCount) / (ThreadBlockOutputShape::kC / ThreadOutputShape::kC);
     int base_h =
         (threadgroup / (ThreadTileCount::kColumn)) * ThreadOutputShape::kH * StrideShape::kRow;
     int base_w =

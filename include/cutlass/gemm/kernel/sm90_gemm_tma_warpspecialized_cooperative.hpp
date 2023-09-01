@@ -286,13 +286,16 @@ public:
     // Kernel level shared memory storage
     SharedStorage& shared_storage = *reinterpret_cast<SharedStorage*>(smem_buf);
 
-    int thread_idx = int(threadIdx.x);
+    constexpr int num_warps = MaxThreadsPerBlock / NumThreadsPerWarp;
+    constexpr int num_warp_groups = num_warps / NumWarpsPerWarpGroup;
+
+    int thread_idx = int(threadIdx.x % MaxThreadsPerBlock);
     int lane_idx = canonical_lane_idx();
-    int warp_idx = canonical_warp_idx_sync();
+    int warp_idx = canonical_warp_idx_sync() % num_warps;
     int warp_idx_in_warp_group = warp_idx % NumWarpsPerWarpGroup;
     int warp_group_thread_idx = thread_idx % NumThreadsPerWarpGroup;
     int mma_thread_idx = thread_idx % size(TiledMma{});
-    auto warp_group_role = WarpGroupRole(canonical_warp_group_idx());
+    auto warp_group_role = WarpGroupRole(canonical_warp_group_idx() % num_warp_groups);
     auto producer_warp_role = ProducerWarpRole(warp_idx_in_warp_group);
     int lane_predicate = cute::elect_one_sync();
     uint32_t block_rank_in_cluster = cute::block_rank_in_cluster();
@@ -362,7 +365,7 @@ public:
         return [] () { cute::cluster_wait(); };
       }
       else {
-        __syncthreads();
+        ark::sync_warps<MaxThreadsPerBlock>();
         return [] () {}; // do nothing
       }
     } ();
@@ -526,7 +529,7 @@ public:
         mainloop_pipe_consumer_state.advance(work_k_tile_count);
 
         // Index of warp group within consumer warp groups
-        int consumer_warp_group_idx = canonical_warp_group_idx() - NumLoadWarpGroups;
+        int consumer_warp_group_idx = canonical_warp_group_idx() % num_warp_groups - NumLoadWarpGroups;
 
         // Perform reduction across splits, if needed
         TileScheduler::fixup(

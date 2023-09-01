@@ -314,7 +314,7 @@ struct ImplicitGemmConvolutionWithFusedEpilogue {
     }
 
     // Compute position within threadblock
-    int thread_idx = threadIdx.x;
+    int thread_idx = threadIdx.x % kThreadCount;
 
     // Construct iterators to A and B operands
     typename Mma::IteratorA iterator_A(
@@ -341,7 +341,7 @@ struct ImplicitGemmConvolutionWithFusedEpilogue {
 
     // Broadcast the warp_id computed by lane 0 to ensure dependent code
     // is compiled as warp-uniform.
-    int warp_idx = canonical_warp_idx_sync();
+    int warp_idx = canonical_warp_idx_sync() % WarpCount::kCount;
     int lane_idx = threadIdx.x % 32;
 
     //

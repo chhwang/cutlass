@@ -573,7 +573,7 @@ private:
       //
       
 
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
       acc2smem_source_not_needed<
           cutlass::make_index_sequence<OutputTileIterator::kIterations /
@@ -581,7 +581,7 @@ private:
                                                                         accum_fragment_iterator,
                                                                         this->warp_tile_iterator_);
 
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
       //
       // Load fragments from shared memory
@@ -720,12 +720,12 @@ private:
       // Convert and store fragment
       //
       
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
       acc2smem_source_needed<cutlass::make_index_sequence<OutputTileIterator::kIterations>>::push(
           iter, accum_fragment_iterator, this->warp_tile_iterator_);
 
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
       //
       // Load fragments from shared memory
@@ -1343,7 +1343,7 @@ private:
       //
       
 
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
       acc2smem_source_not_needed<
           cutlass::make_index_sequence<OutputTileIterator::kIterations /
@@ -1351,7 +1351,7 @@ private:
                                                                         accum_fragment_iterator,
                                                                         this->warp_tile_iterator_);
 
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
       //
       // Load fragments from shared memory
@@ -1484,12 +1484,12 @@ private:
       // Convert and store fragment
       //
       
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
       acc2smem_source_needed<cutlass::make_index_sequence<OutputTileIterator::kIterations>>::push(
           iter, accum_fragment_iterator, this->warp_tile_iterator_);
 
-      __syncthreads();
+      ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
       //
       // Load fragments from shared memory

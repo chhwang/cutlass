@@ -346,7 +346,7 @@ private:
     while (thread_count > 1) {
       thread_count /= 2;
 
-      __syncthreads();
+      ark::sync_warps<Threads>();
 
       if (thread_j < thread_count) {
         ElementCompute other = frag_ptr[thread_j + thread_count];
@@ -356,7 +356,7 @@ private:
         frag_ptr[thread_j] = reduced_accumulator;
       }
 
-      __syncthreads();
+      ark::sync_warps<Threads>();
     }
 
 
@@ -417,7 +417,7 @@ public:
           *reinterpret_cast<ElementOutput *>(dst_byte_ptr + dst_byte_offset) = cvt;
         }
 
-        __syncthreads();
+        ark::sync_warps<Threads>();
 
         // Update indices and pointers
         idx_linear += gridDim.y * blockDim.y;
@@ -450,7 +450,7 @@ public:
           *reinterpret_cast<ElementCompute *>(dst_byte_ptr + byte_offset) = result;
         }
 
-        __syncthreads();
+        ark::sync_warps<Threads>();
 
         // Update indices and pointers
         idx_linear += gridDim.y * blockDim.y;

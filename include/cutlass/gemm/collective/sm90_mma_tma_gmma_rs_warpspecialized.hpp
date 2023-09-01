@@ -136,7 +136,8 @@ struct CollectiveMma<
 
   using MainloopPipeline = cutlass::PipelineTmaAsync<
                              DispatchPolicy::Stages,
-                             typename DispatchPolicy::ClusterShape>;
+                             typename DispatchPolicy::ClusterShape,
+                             size(TiledMma{})>;
   using PipelineState = cutlass::PipelineState<DispatchPolicy::Stages>;
 
   using PipelineParams = typename MainloopPipeline::Params;
@@ -348,7 +349,8 @@ struct CollectiveMma<
   {
 
     using namespace cute;
-    int warp_idx = canonical_warp_idx_sync();
+    constexpr int num_warps = size(TiledMma{}) / NumThreadsPerWarp;
+    int warp_idx = canonical_warp_idx_sync() % num_warps;
     int warp_idx_in_warp_group  = warp_idx % 4;
     int lane_predicate = cute::elect_one_sync();
 
@@ -420,7 +422,8 @@ struct CollectiveMma<
   CUTLASS_DEVICE void
   load_tail(MainloopPipeline pipeline, PipelineState smem_pipe_write)
   {
-    int warp_idx = canonical_warp_idx_sync();
+    constexpr int num_warps = size(TiledMma{}) / NumThreadsPerWarp;
+    int warp_idx = canonical_warp_idx_sync() % num_warps;
     int warp_idx_in_warp_group = warp_idx % 4;
     int lane_predicate = cute::elect_one_sync();
 
@@ -462,7 +465,8 @@ struct CollectiveMma<
       "SM90 GMMA mainloops cannot have a non-void copy atom for smem sourced instructions.");
 
     // Obtain warp index
-    int warp_idx = canonical_warp_idx_sync();
+    constexpr int num_warps = size(TiledMma{}) / NumThreadsPerWarp;
+    int warp_idx = canonical_warp_idx_sync() % num_warps;
     [[maybe_unused]] int warp_group_thread_idx = thread_idx % 128;
     
     Tensor sA_ = make_tensor(make_smem_ptr(shared_tensors.smem_A.data()), SmemLayoutA{});         // (BLK_M,BLK_K,PIPE)

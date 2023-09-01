@@ -199,7 +199,7 @@ public:
     static_assert(rank(StrideD{}) == 3, "StrideD must be rank-3: [M, N, L]. If batch mode is not needed, set L stride to Int<0>.");
 
     // Get the appropriate blocks for this thread block -- potential for thread block locality
-    int thread_idx = int(threadIdx.x);
+    int thread_idx = int(threadIdx.x % MaxThreadsPerBlock);
     auto blk_shape = TileShape{};                                                                // (BLK_M,BLK_N,BLK_K)
     auto [m_coord, n_coord, l_coord] = blockIdx;
     auto blk_coord_mnkl = make_coord(m_coord, n_coord, _, l_coord);                                        // (m,n,k,l)

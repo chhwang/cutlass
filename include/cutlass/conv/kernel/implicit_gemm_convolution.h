@@ -294,7 +294,7 @@ struct ImplicitGemmConvolution {
     }
 
     // Compute position within threadblock
-    int thread_idx = threadIdx.x;
+    int thread_idx = threadIdx.x % kThreadCount;
     int iterator_A_column_offset = threadblock_tile_idx.k() * Mma::Shape::kK;
     if (kGroupMode != GroupMode::kNone) {
       if (kGroupMode != GroupMode::kDepthwise) {
@@ -332,7 +332,7 @@ struct ImplicitGemmConvolution {
 
     // Broadcast the warp_id computed by lane 0 to ensure dependent code
     // is compiled as warp-uniform.
-    int warp_idx = canonical_warp_idx_sync();
+    int warp_idx = canonical_warp_idx_sync() % WarpCount::kCount;
     int lane_idx = threadIdx.x % 32;
 
     //

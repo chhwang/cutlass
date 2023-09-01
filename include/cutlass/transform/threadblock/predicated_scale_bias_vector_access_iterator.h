@@ -188,7 +188,7 @@ class PredicatedScaleBiasVectorAccessIterator<ThreadblockShape_,
   void add_tile_offset(
       TensorCoord const &tile_offset) {
 
-    guard_ = threadIdx.x < kThreads * 2;
+    guard_ = (threadIdx.x % ThreadblockShape::kCount) < kThreads * 2;
 
     TensorCoord offset = is_residue_tile_ ?
       TensorCoord(residue_size_ + ThreadblockShape::kContiguous * (tile_offset.contiguous() - 1), 0)

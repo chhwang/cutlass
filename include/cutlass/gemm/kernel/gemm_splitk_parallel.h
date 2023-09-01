@@ -170,7 +170,7 @@ struct GemmSplitKParallel {
     int gemm_k_iterations = (problem_size_k - tb_offset_A.column() + Mma::Shape::kK - 1) / Mma::Shape::kK;
 
     // Compute position within threadblock
-    int thread_idx = threadIdx.x;
+    int thread_idx = threadIdx.x % kThreadCount;
 
     // Construct iterators to A and B operands
     typename Mma::IteratorA iterator_A(
@@ -187,7 +187,7 @@ struct GemmSplitKParallel {
       thread_idx,
       tb_offset_B);
 
-    int warp_idx = threadIdx.x / 32;
+    int warp_idx = (threadIdx.x % kThreadCount) / 32;
     int lane_idx = threadIdx.x % 32;
 
 

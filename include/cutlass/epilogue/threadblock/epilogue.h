@@ -337,7 +337,7 @@ public:
     // Store fragment to shared memory
     this->warp_tile_iterator_.store(accum_fragment);
 
-    __syncthreads();
+    ark::sync_warps<WarpCount::kCount * NumThreadsPerWarp>();
 
     // Initialize/load source-fragment data
     typename OutputTileIterator::Fragment source_fragment;
@@ -426,7 +426,7 @@ public:
     if (!output_op.is_source_needed())
     {
       source_iterator.clear_mask();
-      __syncthreads();  // Dummy (CUDA 11.0)
+      ark::sync_warps<WarpCount::kCount * NumThreadsPerWarp>();  // Dummy (CUDA 11.0)
     }
 
     operator()(output_op, destination_iterator, accumulators, SourceAspectNeeded(source_iterator));
@@ -490,12 +490,12 @@ public:
       // Convert and store fragment
       //
 
-      __syncthreads();
+      ark::sync_warps<WarpCount::kCount * NumThreadsPerWarp>();
 
       acc2smem<cutlass::make_index_sequence<OutputTileIterator::kIterations>>::push(
         iter, accum_fragment_iterator, this->warp_tile_iterator_);
 
-      __syncthreads();
+      ark::sync_warps<WarpCount::kCount * NumThreadsPerWarp>();
 
       //
       // Load fragments from shared memory

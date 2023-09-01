@@ -108,7 +108,8 @@ struct CollectiveMma<
 
   using MainloopPipeline = cutlass::PipelineTmaAsync<
                              DispatchPolicy::Stages,
-                             typename DispatchPolicy::ClusterShape>;
+                             typename DispatchPolicy::ClusterShape,
+                             size(TiledMma{})>;
 
   using PipelineParams = typename MainloopPipeline::Params;
   using PipelineState  = typename cutlass::PipelineState<DispatchPolicy::Stages>;
@@ -326,7 +327,8 @@ struct CollectiveMma<
 
 
     // Obtain warp index
-    int warp_idx = canonical_warp_idx_sync();
+    constexpr int num_warps = size(TiledMma{}) / NumThreadsPerWarp;
+    int warp_idx = canonical_warp_idx_sync() % num_warps;
     int warp_group_thread_idx = thread_idx % NumThreadsPerWarpGroup;
 
     PipelineParams params;
@@ -353,7 +355,7 @@ struct CollectiveMma<
       cute::cluster_wait();
     }
     else {
-      __syncthreads();
+      ark::sync_warps<size(TiledMma{})>();
     }
 
     // Set predicate for the lowest lane_id in the warp
@@ -420,7 +422,7 @@ struct CollectiveMma<
     CUTE_STATIC_ASSERT_V(Int<DispatchPolicy::Stages>{} == size<2>(sA));        // PIPE
     CUTE_STATIC_ASSERT_V(Int<DispatchPolicy::Stages>{} == size<2>(sB));        // PIPE
 
-    __syncthreads();
+    ark::sync_warps<size(TiledMma{})>();
 
     tiled_mma.accumulate_ = GMMA::ScaleOut::Zero;
 

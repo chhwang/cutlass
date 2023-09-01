@@ -94,7 +94,8 @@ __global__ void GemmPipelined(
   };
 
   // Compute position within threadblock
-  int tb_thread_id = threadIdx.x;
+  constexpr int num_threads = Mma::WarpCount::kCount * NumThreadsPerWarp;
+  int tb_thread_id = threadIdx.x % num_threads;
 
   // Construct iterators to A and B operands
   typename Mma::IteratorA iterator_A(
@@ -111,7 +112,7 @@ __global__ void GemmPipelined(
     tb_thread_id,
     tb_offset_B);
 
-  int warp_id = canonical_warp_idx_sync();
+  int warp_idx = canonical_warp_idx_sync() % Mma::WarpCount::kCount;
   int lane_id = threadIdx.x % 32;
 
   //

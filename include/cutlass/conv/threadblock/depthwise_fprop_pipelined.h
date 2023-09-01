@@ -218,7 +218,7 @@ public:
     ++this->smem_iterator_A_;
     ++this->smem_iterator_B_;
 
-    __syncthreads();
+    ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
 
     // Pair of fragments used to overlap shared memory loads and math instructions
     WarpFragmentA warp_frag_A[2];
@@ -272,7 +272,7 @@ public:
 
           this->smem_iterator_B_.store(transform_B(tb_frag_B));
 
-          __syncthreads();
+          ark::sync_warps<Base::WarpCount::kCount * NumThreadsPerWarp>();
           
           if(rs_plane_idx == gemm_k_iterations_per_channel - 1){
             // Move to next set of filter groups.

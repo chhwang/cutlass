@@ -391,7 +391,7 @@ public:
       };
 
       // Compute position within threadblock
-      int thread_idx = threadIdx.x;
+      int thread_idx = threadIdx.x % kThreadCount;
 
       // Construct iterators to A and B operands
       typename Mma::IteratorA iterator_A(
@@ -423,7 +423,7 @@ public:
 
       // Broadcast the warp_id computed by lane 0 to ensure dependent code
       // is compiled as warp-uniform.
-      int warp_idx = __shfl_sync(0xffffffff, threadIdx.x / 32, 0);
+      int warp_idx = __shfl_sync(0xffffffff, threadIdx.x / 32, 0) % WarpCount::kCount;
 
       int lane_idx = threadIdx.x % 32;
 
@@ -438,7 +438,7 @@ public:
       int gemm_k_iterations = (problem_size.k() + Mma::Shape::kK - 1) / Mma::Shape::kK;
 
       // Wait for all threads to finish their epilogue phases from the previous tile.
-      __syncthreads();
+      ark::sync_warps<kThreadCount>();
 
       // Compute threadblock-scoped matrix multiply-add
       mma(

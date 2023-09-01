@@ -237,7 +237,7 @@ class EpilogueDepthwise {
     // store to smem
     warp_tile_iterator_.store(accumulators);
 
-    __syncthreads();
+    ark::sync_warps<WarpCount::kCount * NumThreadsPerWarp>();
 
     typename SharedLoadIterator::Fragment aligned_accum_fragment;
 
@@ -262,7 +262,7 @@ class EpilogueDepthwise {
     // store to smem
     warp_tile_iterator_.store(accumulators);
 
-    __syncthreads();
+    ark::sync_warps<WarpCount::kCount * NumThreadsPerWarp>();
 
     typename SharedLoadIterator::Fragment aligned_accum_fragment;
 

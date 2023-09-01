@@ -167,9 +167,9 @@ public:
 
     // synchronizing function for smem reads/writes
 #if CUDA_BARRIER_ENABLED
-    auto synchronize = [] () { cutlass::arch::NamedBarrier::sync(typename TiledCopyS2R::TiledNumThr{}, 0); };
+    auto synchronize = [] () { ark::sync_warps<typename TiledCopyS2R::TiledNumThr{}>(); };
 #else
-    auto synchronize = [] () { __syncthreads(); };
+    auto synchronize = [] () { ark::sync_warps<size(TiledMma{})>(); };
 #endif
 
     // Separate out problem shape for convenience

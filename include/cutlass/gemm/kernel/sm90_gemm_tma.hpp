@@ -224,8 +224,10 @@ public:
     static_assert(rank(StrideC{}) == 3, "StrideC must be rank-3: [M, N, L]. If batch mode is not needed, set L stride to Int<0>.");
     static_assert(rank(StrideD{}) == 3, "StrideD must be rank-3: [M, N, L]. If batch mode is not needed, set L stride to Int<0>.");
 
-    int thread_idx = int(threadIdx.x);
-    int warp_idx   = canonical_warp_idx_sync();
+    constexpr int num_warps = MaxThreadsPerBlock / NumThreadsPerWarp;
+
+    int thread_idx = int(threadIdx.x % MaxThreadsPerBlock);
+    int warp_idx   = canonical_warp_idx_sync() % num_warps;
     int lane_predicate = cute::elect_one_sync();
     uint32_t block_rank_in_cluster = cute::block_rank_in_cluster();
 

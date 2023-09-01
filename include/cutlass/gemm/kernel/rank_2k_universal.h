@@ -401,7 +401,7 @@ public:
       offset_k = threadblock_tile_offset.k() * params.gemm_k_size;
     }
 
-    __syncthreads();
+    ark::sync_warps<kThreadCount>();
 
     // Compute initial location in logical coordinates
     cutlass::MatrixCoord tb_offset_MxK{
@@ -416,7 +416,7 @@ public:
 
 
     // Compute position within threadblock
-    int thread_idx = threadIdx.x;
+    int thread_idx = threadIdx.x % kThreadCount;
 
     // Construct iterators to A and B operands for Mma1
     typename Mma1::IteratorA iterator_A(
@@ -450,7 +450,7 @@ public:
 
     // Broadcast the warp_id computed by lane 0 to ensure dependent code
     // is compiled as warp-uniform.
-    int warp_idx = canonical_warp_idx_sync();
+    int warp_idx = canonical_warp_idx_sync() % WarpCount::kCount;
 
     int lane_idx = threadIdx.x % 32;
 
@@ -607,7 +607,7 @@ public:
         semaphore.release(lock);
       }
 
-      __syncthreads();
+      ark::sync_warps<kThreadCount>();
 
       accumulators.clear();
     }

@@ -391,7 +391,7 @@ struct GroupedProblemVisitor<ProblemSizeHelper,
     int32_t prefetch_idx = (tiles_computed % kPrefetchTileCount);
     if (prefetch_idx == 0) {
       // Ensure all previous stores to shared memory have been completed
-      __syncthreads();
+      ark::sync_warps<kThreadCount>();
     }
 
     auto problem_info = shared_storage.prefetched_problems[prefetch_idx];
@@ -400,7 +400,7 @@ struct GroupedProblemVisitor<ProblemSizeHelper,
     if ((tiles_computed % kPrefetchTileCount) == 0) {
       // Begin prefetching next set of tiles. Synchronize first to ensure that
       // we don't overwrite the current buffer while someone else is using it.
-      __syncthreads();
+      ark::sync_warps<kThreadCount>();
       prefetch_tiles();
     }
 
@@ -446,7 +446,7 @@ private:
   void prefetch_tiles() {
     CUTLASS_PRAGMA_UNROLL
     for (int32_t i = 0; i < kPrefetchTileCount; i += kThreadCount) {
-      int32_t offset = threadIdx.x + i;
+      int32_t offset = (threadIdx.x % kThreadCount) + i;
       if (offset < kPrefetchTileCount && (tiles_computed + offset < iterations_per_block)) {
         shared_storage.prefetched_problems[offset] = problem_info_ptr[block_load_start + tiles_computed + offset];
       }
