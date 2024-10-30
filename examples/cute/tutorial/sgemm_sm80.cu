@@ -36,10 +36,38 @@
 #include <thrust/device_vector.h>
 
 #include <cute/tensor.hpp>
+#include <mpi.h>
+#include <mscclpp/core.hpp>
+#include <mscclpp/sm_channel.hpp>
 
 #include "cutlass/util/print_error.hpp"
 #include "cutlass/util/GPU_Clock.hpp"
 #include "cutlass/util/helper_cuda.hpp"
+
+#define CUDA_CHECK(ans) { \
+  if (ans != cudaSuccess) { \
+    printf("CUDA Error %d at %s:%d; %s\n", ans, __FILE__, __LINE__, cudaGetErrorString(ans)); \
+    exit(-1); \
+  } \
+}
+
+static __device__ __forceinline__ uint32_t getSmId() {
+  uint32_t smid;
+  asm volatile("mov.u32 %0, %%smid;" : "=r"(smid));
+  return smid;
+}
+
+template <class T>
+static __device__ __forceinline__ void copyTile(T const* local, T* remote,
+                                                int lenMaj, int offsetMaj, int ldMaj,
+                                                int lenMin, int offsetMin, [[maybe_unused]] int ldMin) {
+  for (int tid = threadIdx.x; tid < lenMaj * lenMin; tid += blockDim.x) {
+    int i = tid / lenMaj;
+    int j = tid % lenMaj;
+    int idx = (offsetMin + i) * ldMaj + offsetMaj + j;
+    remote[idx] = local[idx];
+  }
+}
 
 template <class ProblemShape, class CtaTiler,
           class TA, class AStride, class ASmemLayout, class TiledCopyA,
@@ -53,7 +81,9 @@ gemm_device(ProblemShape shape_MNK, CtaTiler cta_tiler,
             TA const* A, AStride dA, ASmemLayout sA_layout, TiledCopyA copy_a,
             TB const* B, BStride dB, BSmemLayout sB_layout, TiledCopyB copy_b,
             TC      * C, CStride dC, CSmemLayout          , TiledMma mma,
-            Alpha alpha, Beta beta)
+            Alpha alpha, Beta beta,
+            mscclpp::DeviceHandle<mscclpp::SmChannel>* channels, TC* scratch,
+            int commRank, int nCommRanks)
 {
   using namespace cute;
 
@@ -284,6 +314,26 @@ gemm_device(ProblemShape shape_MNK, CtaTiler cta_tiler,
   //
 
   axpby(alpha, tCrC, beta, tCgC);
+
+  __syncthreads();
+
+  channels = &channels[(nCommRanks - 1) * getSmId()];
+  for (int i = 0; i < nCommRanks - 1; i++) {
+    int m = get<0>(shape_MNK);
+    int n = get<1>(shape_MNK);
+    int blk_m = get<0>(cta_tiler);
+    int blk_n = get<1>(cta_tiler);
+    copyTile(C, &(((TC*)channels[i].dst_)[commRank * m * n]), blk_n, blockIdx.y * blk_n, m,
+             blk_m, blockIdx.x * blk_m, n);
+  }
+  __syncthreads();
+  if (threadIdx.x == 0) {
+    for (int i = 0; i < nCommRanks - 1; i++) {
+      channels[i].signal();
+      channels[i].wait();
+    }
+  }
+  __syncthreads();
 }
 
 // Setup params for a NT GEMM
@@ -296,6 +346,9 @@ gemm_nt(int m, int n, int k,
         TB const* B, int ldB,
         Beta beta,
         TC      * C, int ldC,
+        mscclpp::DeviceHandle<mscclpp::SmChannel>* channels,
+        TC* scratch,
+        int rank, int nRanks,
         cudaStream_t stream = 0)
 {
   using namespace cute;
@@ -312,7 +365,7 @@ gemm_nt(int m, int n, int k,
   auto dC = make_stride(Int<1>{}, ldC);                      // (dM, dN)
 
   // Define CTA tile sizes (static)
-  auto bM = Int<128>{};
+  auto bM = Int<256>{};
   auto bN = Int<128>{};
   auto bK = Int<  8>{};
   auto cta_tiler = make_shape(bM, bN, bK);                   // (BLK_M, BLK_N, BLK_K)
@@ -355,7 +408,9 @@ gemm_nt(int m, int n, int k,
        A, dA, sA, copyA,
        B, dB, sB, copyB,
        C, dC, sC, mmaC,
-       alpha, beta);
+       alpha, beta,
+       channels, scratch,
+       rank, nRanks);
 }
 
 // Setup params for a TN GEMM
@@ -368,6 +423,9 @@ gemm_tn(int m, int n, int k,
         TB const* B, int ldB,
         Beta beta,
         TC      * C, int ldC,
+        mscclpp::DeviceHandle<mscclpp::SmChannel>* channels,
+        TC* scratch,
+        int rank, int nRanks,
         cudaStream_t stream = 0)
 {
   using namespace cute;
@@ -431,7 +489,9 @@ gemm_tn(int m, int n, int k,
        A, dA, sA, copyA,
        B, dB, sB, copyB,
        C, dC, sC, mmaC,
-       alpha, beta);
+       alpha, beta,
+       channels, scratch,
+       rank, nRanks);
 }
 
 template <class TA, class TB, class TC,
@@ -443,13 +503,16 @@ gemm(char transA, char transB, int m, int n, int k,
      TB const* B, int ldB,
      Beta beta,
      TC      * C, int ldC,
+     mscclpp::DeviceHandle<mscclpp::SmChannel>* channels,
+     TC* scratch,
+     int rank, int nRanks,
      cudaStream_t stream = 0)
 {
   if (transA == 'N' && transB == 'T') {
-    return gemm_nt(m, n, k, alpha, A, ldA, B, ldB, beta, C, ldC, stream);
+    return gemm_nt(m, n, k, alpha, A, ldA, B, ldB, beta, C, ldC, channels, scratch, rank, nRanks, stream);
   } else
   if (transA == 'T' && transB == 'N') {
-    return gemm_tn(m, n, k, alpha, A, ldA, B, ldB, beta, C, ldC, stream);
+    return gemm_tn(m, n, k, alpha, A, ldA, B, ldB, beta, C, ldC, channels, scratch, rank, nRanks, stream);
   }
   assert(false && "Not implemented");
 }
@@ -457,12 +520,17 @@ gemm(char transA, char transB, int m, int n, int k,
 
 int main(int argc, char** argv)
 {
+  MPI_Init(&argc, &argv);
+
+  int rank;
+  int nRanks;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+
+  int device = rank;
+
   cudaDeviceProp props;
-  cudaError_t error = cudaGetDeviceProperties(&props, 0);
-  if (error != cudaSuccess) {
-    std::cerr << "cudaGetDeviceProperties() returned an error: " << cudaGetErrorString(error) << std::endl;
-    return -1;
-  }
+  CUDA_CHECK(cudaGetDeviceProperties(&props, device));
 
   if (props.major < 8) {
     std::cout << "This example requires an Ampere GPU or newer (CC >= 80)" << std::endl;
@@ -470,15 +538,47 @@ int main(int argc, char** argv)
     return 0;
   }
 
-  int m = 5120;
+  CUDA_CHECK(cudaSetDevice(device));
+
+  // Initialize bootstrapper with MPI
+  auto bootstrap = std::make_shared<mscclpp::TcpBootstrap>(rank, nRanks);
+  mscclpp::UniqueId id;
+  if (rank == 0) id = mscclpp::TcpBootstrap::createUniqueId();
+  MPI_Bcast(&id, sizeof(id), MPI_BYTE, 0, MPI_COMM_WORLD);
+  bootstrap->initialize(id);
+
+  // Initialize communicator and create one connection per peer
+  mscclpp::Communicator comm(bootstrap);
+  std::vector<mscclpp::NonblockingFuture<std::shared_ptr<mscclpp::Connection>>> connectionFutures;
+  std::vector<std::shared_ptr<mscclpp::Connection>> connections;
+  for (int i = 0; i < nRanks; i++) {
+    if (i == rank) continue;
+    connectionFutures.push_back(comm.connectOnSetup(i, 0, mscclpp::Transport::CudaIpc));
+  }
+  comm.setup();
+  std::transform(connectionFutures.begin(), connectionFutures.end(), std::back_inserter(connections),
+                 [](const auto& future) { return future.get(); });
+
+  // Create one semaphore per connection per SM
+  int nSMs = props.multiProcessorCount;
+  std::vector<std::shared_ptr<mscclpp::SmDevice2DeviceSemaphore>> smSemaphores;
+  for (int i = 0; i < nSMs; i++) {
+    for (auto &conn : connections) {
+      smSemaphores.emplace_back(
+          std::make_shared<mscclpp::SmDevice2DeviceSemaphore>(comm, conn));
+    }
+  }
+  comm.setup();
+
+  int m = 256;
   if (argc >= 2)
     sscanf(argv[1], "%d", &m);
 
-  int n = 5120;
+  int n = 256;
   if (argc >= 3)
     sscanf(argv[2], "%d", &n);
 
-  int k = 4096;
+  int k = 256;
   if (argc >= 4)
     sscanf(argv[3], "%d", &k);
 
@@ -515,6 +615,40 @@ int main(int argc, char** argv)
   thrust::device_vector<TB> d_B = h_B;
   thrust::device_vector<TC> d_C = h_C;
 
+  // Scratch buffer; one copy per peer
+  thrust::device_vector<TC> d_S(m*n*nRanks);
+
+  // Register scratch buffer
+  mscclpp::RegisteredMemory localMem = comm.registerMemory(d_S.data().get(), d_S.size() * sizeof(TC), mscclpp::Transport::CudaIpc);
+
+  // Exchange registered memories with all peers
+  std::vector<mscclpp::NonblockingFuture<mscclpp::RegisteredMemory>> remoteMemFutures;
+  std::vector<mscclpp::RegisteredMemory> remoteMems;
+  for (int i = 0; i < nRanks; i++) {
+    if (i == rank) continue;
+    remoteMemFutures.push_back(comm.recvMemoryOnSetup(i, 0));
+    comm.sendMemoryOnSetup(localMem, i, 0);
+  }
+  comm.setup();
+  std::transform(remoteMemFutures.begin(), remoteMemFutures.end(), std::back_inserter(remoteMems),
+                 [](const auto& future) { return future.get(); });
+
+  // Create an SM channel per semaphore
+  std::vector<mscclpp::SmChannel> channels;
+  for (int i = 0; i < nSMs; i++) {
+    for (int cid = 0; cid < nRanks - 1; cid++) {
+      // Channels copy data from local d_C to remote d_S
+      channels.emplace_back(smSemaphores[i * (nRanks - 1) + cid], remoteMems[cid], d_C.data().get());
+    }
+  }
+
+  // Get device handles
+  thrust::host_vector<mscclpp::DeviceHandle<mscclpp::SmChannel>> deviceHandles(channels.size());
+  for (int i = 0; i < channels.size(); i++) {
+    deviceHandles[i] = mscclpp::deviceHandle(channels[i]);
+  }
+  thrust::device_vector<mscclpp::DeviceHandle<mscclpp::SmChannel>> d_deviceHandles = deviceHandles;
+
   double gflops = (2.0*m*n*k) * 1e-9;
 
   const int timing_iterations = 100;
@@ -538,6 +672,9 @@ int main(int argc, char** argv)
     assert(false);
   }
 
+  cudaStream_t stream;
+  CUDA_CHECK(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
+
   // Run once
   d_C = h_C;
   gemm(transA, transB, m, n, k,
@@ -545,7 +682,12 @@ int main(int argc, char** argv)
        d_A.data().get(), ldA,
        d_B.data().get(), ldB,
        beta,
-       d_C.data().get(), ldC);
+       d_C.data().get(), ldC,
+       d_deviceHandles.data().get(),
+       d_S.data().get(),
+       rank, nRanks,
+       stream);
+  CUDA_CHECK(cudaStreamSynchronize(stream));
   CUTE_CHECK_LAST();
   thrust::host_vector<TC> cute_result = d_C;
 
@@ -557,11 +699,20 @@ int main(int argc, char** argv)
          d_A.data().get(), ldA,
          d_B.data().get(), ldB,
          beta,
-         d_C.data().get(), ldC);
+         d_C.data().get(), ldC,
+         d_deviceHandles.data().get(),
+         d_S.data().get(),
+         rank, nRanks,
+         stream);
   }
+  CUDA_CHECK(cudaStreamSynchronize(stream));
+
   double cute_time = timer.seconds() / timing_iterations;
   CUTE_CHECK_LAST();
   printf("CUTE_GEMM:     [%6.1f]GFlop/s  (%6.4f)ms\n", gflops / cute_time, cute_time*1000);
+
+  CUDA_CHECK(cudaStreamDestroy(stream));
+  MPI_Finalize();
 
   return 0;
 }

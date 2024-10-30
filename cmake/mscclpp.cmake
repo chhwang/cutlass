@@ -1,5 +1,4 @@
-
-# Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2017 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,41 +26,25 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+include(FetchContent)
 
-cutlass_example_add_executable(
-  sgemm_1
-  sgemm_1.cu
-)
+set(MSCCLPP_DIR "" CACHE STRING "Location of local MSCCL++ repo to build against")
 
-cutlass_example_add_executable(
-  sgemm_2
-  sgemm_2.cu
-)
+if(MSCCLPP_DIR)
+  set(FETCHCONTENT_SOURCE_DIR_MSCCLPP ${MSCCLPP_DIR} CACHE STRING "MSCCL++ source directory override")
+endif()
 
-cutlass_example_add_executable(
-  sgemm_sm70
-  sgemm_sm70.cu
-)
-
-cutlass_example_add_executable(
-  sgemm_sm80
-  sgemm_sm80.cu
-)
-
-cutlass_example_add_executable(
-  tiled_copy
-  tiled_copy.cu
-)
-
-cutlass_example_add_executable(
-  wgmma_sm90
-  wgmma_sm90.cu
-)
-
-find_package(MPI REQUIRED)
-target_link_libraries(
-  sgemm_sm80
-  PUBLIC
+set(MSCCLPP_REPOSITORY "https://github.com/microsoft/mscclpp.git" CACHE STRING "MSCCL++ repo to fetch")
+FetchContent_Declare(
   mscclpp
-  MPI::MPI_CXX
+  GIT_REPOSITORY ${MSCCLPP_REPOSITORY}
+  GIT_TAG        chhwang/fix-cmake
 )
+
+FetchContent_GetProperties(mscclpp)
+
+if(NOT mscclpp_POPULATED)
+  FetchContent_Populate(mscclpp)
+  set(MSCCLPP_BUILD_PYTHON_BINDINGS OFF CACHE BOOL "" FORCE)
+  add_subdirectory(${mscclpp_SOURCE_DIR} ${mscclpp_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
